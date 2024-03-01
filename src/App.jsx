@@ -1,9 +1,8 @@
 import { Button, Card, Col, Input, Row, Space, Tabs, message } from "antd";
+import { useState } from "react";
+import { convertXmlToCollection } from "../utils/convertXmlToCollection";
 import "./App.css";
 import FileUpload from "./file-upload";
-import { convertXmlToCollection } from "../utils/convertXmlToCollection";
-import { useState } from "react";
-import axios from "axios";
 
 const initData = {
   info: {
@@ -51,7 +50,7 @@ function App() {
 
   const handleDownload = () => {
     if (!textCollection) {
-      return message.error(`Bạn chưa chọn file xml cần convert!`);
+      return message.error(`You must choose a file at least`);
     }
     const element = document.createElement("a");
     const file = new Blob([textCollection], {
@@ -70,7 +69,7 @@ function App() {
           const scenarioName = file.name.split(".")[0];
           resolve(convertXmlToCollection(e.target.result, scenarioName));
         } else {
-          message.error(`file tải lên thất bại!`);
+          message.error(`file upload failed!`);
         }
       };
       reader.readAsText(file);
@@ -83,7 +82,7 @@ function App() {
     const files = event.target.files;
     const rootFolderName = files[0].webkitRelativePath.split("/")[0]?.trim();
     const items = [];
-    await [...files].forEach(async (item, index) => {
+    [...files].forEach(async (item, index) => {
       let reader = new FileReader();
       const data = await readFileData(reader, files[index]);
       items.push(data);

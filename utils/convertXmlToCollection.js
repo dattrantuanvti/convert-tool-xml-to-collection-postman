@@ -1,3 +1,5 @@
+const REGEX_CHANGE_VAR_FORMAT = /\${(.*?)}/g;
+
 export function convertXmlToCollection(textXml, scenarioName) {
   const xmlFormatString = textXml.replaceAll("#", "//");
   const parser = new DOMParser();
@@ -17,27 +19,42 @@ export function convertXmlToCollection(textXml, scenarioName) {
     const listHeaderElms = headerElm.querySelectorAll(
       "DarRepoWebApiRequestHeader"
     );
+    let headerIsXmlType = false;
+
+    // Create headers
     listHeaderElms.forEach((headerElm) => {
       const key = headerElm.querySelector("Key")?.textContent?.trim();
       const value = headerElm.querySelector("Value")?.textContent?.trim();
       const isEnabled =
         headerElm.querySelector("Enabled")?.textContent?.trim() === "true";
+      if (value.includes("xml")) headerIsXmlType = true;
       headers.push({
         key,
-        value: value.replace(/\${(.*?)}/g, "{{$1}}"),
+        value: value.replace(REGEX_CHANGE_VAR_FORMAT, "{{$1}}"),
         type: "text",
         ...(!isEnabled && { disabled: true }),
       });
     });
 
     const body = element.querySelector("RequestBody")?.textContent;
+    // EXTRACT HEADER
     const rawUrl =
       element.querySelector("HttpUrl")?.textContent?.trim() || "INVALID_URL";
-    const hostUrl = rawUrl.split("/")[0].replace(/\${(.*?)}/g, "{{$1}}");
-    const path = rawUrl.split("/").splice(1);
+    let hostUrl;
+    let path;
+    if (rawUrl.startsWith("http")) {
+      const pathUrl = rawUrl.split("://")[1];
+      hostUrl = "http://" + pathUrl.split("/")[0];
+      path = pathUrl.split("/").splice(1);
+    } else {
+      hostUrl = rawUrl.split("/")[0].replace(REGEX_CHANGE_VAR_FORMAT, "{{$1}}");
+      path = rawUrl.split("/").splice(1);
+    }
     const description = element
       .querySelector("Description")
       ?.textContent?.trim();
+
+    // TEST SCRIPT
     const expectElm = element.querySelector("Expect");
     const expectCodeValue = expectElm
       .querySelector("ExpectHttpCode")
@@ -84,7 +101,7 @@ export function convertXmlToCollection(textXml, scenarioName) {
       const fetchVariableKey = item
         .querySelector("FetchVariable")
         ?.textContent?.trim();
-      const key = fetchVariableKey.replace(/\${(.*?)}/g, "$1");
+      const key = fetchVariableKey.replace(REGEX_CHANGE_VAR_FORMAT, "$1");
       const init = `pm.environment.set(\"${key}\", actualJson${configVarValue});`;
       return init;
     });
@@ -116,15 +133,22 @@ export function convertXmlToCollection(textXml, scenarioName) {
         header: headers,
         body: {
           mode: "raw",
-          raw: body.replace(/(\t)/g, "").replace(/\${(.*?)}/g, "{{$1}}"),
+          raw: JSON.parse(
+            JSON.stringify(
+              body
+                .replace(/(\t)/g, "")
+                .replace(REGEX_CHANGE_VAR_FORMAT, "{{$1}}")
+                .replace(/(.*?),\s*(\}|])/g, "$1$2")
+            )
+          ),
           options: {
             raw: {
-              language: "json",
+              language: headerIsXmlType ? "xml" : "json",
             },
           },
         },
         url: {
-          raw: rawUrl.replace(/\${(.*?)}/g, "{{$1}}"),
+          raw: rawUrl.replace(REGEX_CHANGE_VAR_FORMAT, "{{$1}}"),
           host: hostUrl,
           path,
         },

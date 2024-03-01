@@ -1,6 +1,12 @@
 # Tool convert dar file to collection of postman
-
 # Introduce
+
+### Run
+
+```bash
+yarn
+yarn dev
+```
 
 ### Upload a scenario
 
